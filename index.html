@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tesla El-Tracker</title>
+<style>
+  :root {
+    --bg: #F6F5F1;
+    --surface: #FFFFFF;
+    --ink: #1B2B29;
+    --muted: #5C6B68;
+    --line: #DDE3E0;
+    --accent: #1F6F5C;
+    --accent-soft: #E4F0EC;
+    --warn: #B4472A;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10201C;
+      --surface: #16302A;
+      --ink: #EAF2EF;
+      --muted: #93A7A2;
+      --line: #294842;
+      --accent: #5FC9A8;
+      --accent-soft: #1D3B34;
+      --warn: #E08464;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #10201C;
+    --surface: #16302A;
+    --ink: #EAF2EF;
+    --muted: #93A7A2;
+    --line: #294842;
+    --accent: #5FC9A8;
+    --accent-soft: #1D3B34;
+    --warn: #E08464;
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 16px 60px; }
+  header { margin-bottom: 18px; }
+  h1 { font-size: 1.4rem; font-weight: 650; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 0.88rem; margin: 0; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 0.95rem; font-weight: 650; margin: 0 0 12px; }
+
+  .date-row { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .day-nav-btn {
+    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  .day-nav-btn:active { background: var(--accent-soft); }
+  .date-row input[type="date"] {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 0.95rem;
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 0.72rem; color: var(--muted); font-weight: 600; padding: 4px 4px; }
+  td { padding: 3px 4px; }
+  .hr-cell { font-size: 0.8rem; color: var(--muted); width: 34px; white-space: nowrap; padding-top: 8px; }
+  input[type="number"], input.num-input {
+    width: 100%;
+    padding: 7px 6px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 0.88rem;
+  }
+  input[type="number"]:focus, input.num-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .scroll-x { overflow-x: auto; }
+
+  .btn {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--surface);
+    border: none;
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 12px;
+  }
+  .btn:active { opacity: 0.85; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--warn);
+    border: 1px solid var(--line);
+    font-weight: 500;
+  }
+
+  .totals-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat { background: var(--accent-soft); border-radius: 10px; padding: 10px 12px; }
+  .stat .num { font-size: 1.25rem; font-weight: 700; }
+  .stat .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  .empty { color: var(--muted); font-size: 0.85rem; padding: 8px 0; }
+
+  .save-confirm {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0);
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.25s ease, background 0.25s ease;
+  }
+  .save-confirm.show {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.35);
+  }
+  .save-confirm-card {
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 28px 36px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    transform: scale(0.85);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .save-confirm.show .save-confirm-card { transform: scale(1); }
+  .save-check { width: 64px; height: 64px; }
+  .save-check-circle {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-dasharray: 164;
+    stroke-dashoffset: 164;
+  }
+  .save-check-mark {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 34;
+    stroke-dashoffset: 34;
+  }
+  .save-confirm.show .save-check-circle { animation: save-draw-circle 0.4s ease forwards; }
+  .save-confirm.show .save-check-mark { animation: save-draw-check 0.25s ease forwards 0.35s; }
+  @keyframes save-draw-circle { to { stroke-dashoffset: 0; } }
+  @keyframes save-draw-check { to { stroke-dashoffset: 0; } }
+  .save-confirm-text { font-weight: 650; font-size: 1rem; color: var(--ink); }
+  .num-cell { text-align: right; white-space: nowrap; font-size: 0.85rem; padding: 6px 8px; }
+  #daysTable td, #monthTable td, #totalsByMonthTable td { border-top: 1px solid var(--line); padding-top: 8px; padding-bottom: 8px; }
+  #daysTable th, #monthTable th, #totalsByMonthTable th { padding: 4px 8px; }
+  .del-btn { background: none; border: none; color: var(--muted); font-size: 0.78rem; cursor: pointer; padding: 4px 6px; }
+</style>
+</head>
+<body>
+<div class="save-confirm" id="saveConfirm" aria-hidden="true">
+  <div class="save-confirm-card">
+    <svg class="save-check" viewBox="0 0 60 60">
+      <circle class="save-check-circle" cx="30" cy="30" r="26"></circle>
+      <path class="save-check-mark" d="M18 31 L26 39 L43 20"></path>
+    </svg>
+    <div class="save-confirm-text">Saved</div>
+  </div>
+</div>
+<div class="wrap">
+  <header>
+    <h1>Tesla El-Tracker</h1>
+    <p class="sub">Log kWh and kr/kWh hour by hour — compare against your invoice.</p>
+  </header>
+
+  <div class="card">
+    <h2>New day</h2>
+    <div class="date-row">
+      <button type="button" id="prevDayBtn" class="day-nav-btn" aria-label="Previous day">←</button>
+      <input type="date" id="dateInput">
+      <button type="button" id="nextDayBtn" class="day-nav-btn" aria-label="Next day">→</button>
+    </div>
+    <div class="scroll-x">
+      <table id="hourTable">
+        <thead>
+          <tr><th style="width:34px;">Hour</th><th>kr/kWh</th><th>Car kWh</th><th>Solar kWh</th><th>Net kr</th></tr>
+        </thead>
+        <tbody id="hourBody"></tbody>
+      </table>
+    </div>
+    <div class="totals-grid" id="dayTotals" style="margin-top:14px;">
+      <div class="stat"><div class="num" id="dayCarKwh">0,00</div><div class="lbl">Car kWh</div></div>
+      <div class="stat"><div class="num" id="daySolarKwh">0,00</div><div class="lbl">Solar kWh</div></div>
+      <div class="stat"><div class="num" id="dayNet">0,00</div><div class="lbl">Net kr (Car − Solar)</div></div>
+    </div>
+    <button class="btn" id="saveDayBtn">Save day</button>
+  </div>
+
+  <div class="card">
+    <h2>Tesla charging</h2>
+    <p class="sub" style="margin-bottom:12px;">Distributes kWh from your Tesla app across the hours above based on the charger's power (Wall Connector Gen 3 = 11 kW).</p>
+    <div class="date-row" style="flex-wrap: wrap;">
+      <div style="flex:1; min-width:110px;">
+        <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">Start time</label>
+        <input type="time" id="chargeStartHour" value="00:00" step="60" style="width:100%; padding:10px 8px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:0.9rem;">
+      </div>
+      <div style="flex:1; min-width:110px;">
+        <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">kWh charged</label>
+        <input type="text" inputmode="decimal" autocomplete="off" class="num-input" placeholder="0,00" id="chargeKwh" style="width:100%; padding:10px 8px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:0.9rem;">
+      </div>
+      <div style="flex:1; min-width:90px;">
+        <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">Charger kW</label>
+        <input type="text" inputmode="decimal" autocomplete="off" class="num-input" id="chargeRate" value="11,00" style="width:100%; padding:10px 8px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:0.9rem;">
+      </div>
+    </div>
+    <button class="btn" id="distributeBtn">Distribute across hours</button>
+    <p class="sub" id="chargeStatus" style="margin-top:10px;"></p>
+  </div>
+
+  <div class="card">
+    <h2>Totals</h2>
+    <div class="totals-grid">
+      <div class="stat">
+        <div class="num" id="totalCarKwh">0,00</div>
+        <div class="lbl">Car kWh</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="totalCarCost">0,00 kr</div>
+        <div class="lbl">Car kr</div>
+      </div>
+      <div class="stat">
+        <div class="num" id="totalNetCost">0,00 kr</div>
+        <div class="lbl">Net kr from 22/9-2026</div>
+      </div>
+    </div>
+    <div class="scroll-x" style="margin-top:14px;">
+      <table id="totalsByMonthTable">
+        <thead>
+          <tr><th>Month</th><th>Car kWh</th><th>Net kr</th></tr>
+        </thead>
+        <tbody id="totalsByMonthBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Monthly totals</h2>
+    <p class="sub" style="margin-bottom:12px;">House kWh, House kr, Solar kWh and Solar kr are typed in by hand (e.g. from a bill or your inverter's monthly screen). Car kWh and Car kr are calculated from the hourly data above. Only house = House kr − Car kr − Solar kr.</p>
+    <div class="scroll-x">
+      <table id="monthTable">
+        <thead>
+          <tr><th>Month</th><th>Car kWh</th><th>Car kr</th><th>House kWh</th><th>House kr</th><th>Solar kWh</th><th>Solar kr</th><th>Only house</th></tr>
+        </thead>
+        <tbody id="monthBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Backup &amp; restore</h2>
+    <p class="sub" style="margin-bottom:12px;">Export a backup regularly. Both your daily data and your monthly manual inputs are saved in the backup file.</p>
+    <button class="btn" id="exportBtn">Export backup (.json)</button>
+    <input type="file" id="importFile" accept=".json,application/json" style="width:100%; margin-top:10px; font-size:0.85rem; color:var(--muted);">
+    <button class="btn" id="importBtn" style="margin-top:10px;">Import backup</button>
+    <p class="sub" id="backupStatus" style="margin-top:10px;"></p>
+  </div>
+
+  <div class="card">
+    <h2>Saved days</h2>
+    <div class="scroll-x">
+      <table id="daysTable">
+        <thead>
+          <tr><th>Date</th><th>Car kWh</th><th>Solar kWh</th><th>Net kr</th><th></th></tr>
+        </thead>
+        <tbody id="daysBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Import charging history (CSV)</h2>
+    <p class="sub" style="margin-bottom:12px;">From the Tesla app export (columns: start time, duration in minutes, kWh).</p>
+    <div style="margin-bottom:10px;">
+      <label style="font-size:0.72rem; color:var(--muted); display:block; margin-bottom:4px;">House baseline load (kWh/hour, without car)</label>
+      <input type="text" inputmode="decimal" autocomplete="off" class="num-input" id="baselineLoad" value="0,55" style="width:100%; padding:10px 8px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:0.9rem;">
+    </div>
+    <input type="file" id="csvFile" accept=".csv,text/csv" style="width:100%; margin-bottom:10px; font-size:0.85rem; color:var(--muted);">
+    <textarea id="csvInput" rows="3" placeholder="...or paste CSV text here" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:0.82rem; font-family:monospace; resize:vertical;"></textarea>
+    <button class="btn" id="importCsvBtn">Import</button>
+    <p class="sub" id="importStatus" style="margin-top:10px;"></p>
+  </div>
+
+  <div class="card">
+    <h2>Import house consumption (CSV)</h2>
+    <p class="sub" style="margin-bottom:12px;">From a Min Strøm / Go Energi export (columns: Date, Consumption (kWh), Total price (kr/kWh), ...).</p>
+    <input type="file" id="houseCsvFile" accept=".csv,text/csv" style="width:100%; margin-bottom:10px; font-size:0.85rem; color:var(--muted);">
+    <textarea id="houseCsvInput" rows="3" placeholder="...or paste CSV text here" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:0.82rem; font-family:monospace; resize:vertical;"></textarea>
+    <button class="btn" id="importHouseCsvBtn">Import</button>
+    <p class="sub" id="importHouseStatus" style="margin-top:10px;"></p>
+  </div>
+
+  <div class="card">
+    <h2>Import solar export (CSV)</h2>
+    <p class="sub" style="margin-bottom:12px;">Hourly kWh sold to the grid (columns: Date, Export (kWh)).</p>
+    <input type="file" id="solarCsvFile" accept=".csv,text/csv" style="width:100%; margin-bottom:10px; font-size:0.85rem; color:var(--muted);">
+    <textarea id="solarCsvInput" rows="3" placeholder="...or paste CSV text here" style="width:100%; padding:10px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--ink); font-size:0.82rem; font-family:monospace; resize:vertical;"></textarea>
+    <button class="btn" id="importSolarCsvBtn">Import</button>
+    <p class="sub" id="importSolarStatus" style="margin-top:10px;"></p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var STORAGE_KEY = 'el-tracker-days';
+  var MONTHLY_MANUAL_KEY = 'el-tracker-monthly-manual';
+  var NET_KR_START_DATE = '2026-09-22';
+
+  function loadDays() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveDays(days) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(days)); } catch (e) {}
+  }
+
+  function loadMonthlyManual() {
+    try {
+      var raw = localStorage.getItem(MONTHLY_MANUAL_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+  }
+  function saveMonthlyManual(data) {
+    try { localStorage.setItem(MONTHLY_MANUAL_KEY, JSON.stringify(data)); } catch (e) {}
+  }
+
+  var dateInput = document.getElementById('dateInput');
+  var hourBody = document.getElementById('hourBody');
+  var daysBody = document.getElementById('daysBody');
+  var monthBody = document.getElementById('monthBody');
+  var totalCarKwhEl = document.getElementById('totalCarKwh');
+  var totalCarCostEl = document.getElementById('totalCarCost');
+  var totalNetCostEl = document.getElementById('totalNetCost');
+  var chargeStartHour = document.getElementById('chargeStartHour');
+  var chargeKwh = document.getElementById('chargeKwh');
+  var chargeRate = document.getElementById('chargeRate');
+
+  var today = new Date();
+  dateInput.value = today.toISOString().slice(0, 10);
+
+  function buildHourRows() {
+    hourBody.innerHTML = '';
+    for (var h = 0; h < 24; h++) {
+      var tr = document.createElement('tr');
+      var label = (h < 10 ? '0' : '') + h + ':00';
+      tr.innerHTML =
+        '<td class="hr-cell">' + label + '</td>' +
+        '<td><input type="text" inputmode="decimal" autocomplete="off" class="num-input price-input" data-hour="' + h + '"></td>' +
+        '<td><input type="text" inputmode="decimal" autocomplete="off" class="num-input car-kwh-input" data-hour="' + h + '"></td>' +
+        '<td><input type="text" inputmode="decimal" autocomplete="off" class="num-input solar-kwh-input" data-hour="' + h + '"></td>' +
+        '<td class="net-cost-cell" data-hour="' + h + '" style="font-size:0.85rem; color:var(--muted); white-space:nowrap;">0,00</td>';
+      hourBody.appendChild(tr);
+    }
+  }
+  buildHourRows();
+
+  function fmt(n) {
+    return (n || 0).toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function parseNum(s) {
+    if (s == null) return NaN;
+    var t = String(s).replace(/\s/g, '').replace(',', '.');
+    if (t === '') return NaN;
+    return parseFloat(t);
+  }
+  function fmtInput(n) {
+    return (typeof n === 'number' && !isNaN(n)) ? n.toFixed(2).replace('.', ',') : '';
+  }
+
+  document.addEventListener('focusout', function (e) {
+    var el = e.target;
+    if (el && el.classList && el.classList.contains('num-input')) {
+      var n = parseNum(el.value);
+      el.value = isNaN(n) ? '' : fmtInput(n);
+    }
+  });
+
+  function parseTime(s) {
+    var m = /^(\d{1,2}):(\d{2})/.exec(s || '');
+    return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null;
+  }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function fmtClock(min) {
+    min = Math.round(min);
+    return pad2(Math.floor(min / 60) % 24) + ':' + pad2(min % 60);
+  }
+
+  function updateDayTotals() {
+    var priceI = document.querySelectorAll('.price-input');
+    var carI = document.querySelectorAll('.car-kwh-input');
+    var solarI = document.querySelectorAll('.solar-kwh-input');
+    var car = 0, solar = 0, net = 0;
+    for (var i = 0; i < 24; i++) {
+      var p = parseNum(priceI[i].value);
+      var c = parseNum(carI[i].value), s = parseNum(solarI[i].value);
+      if (isNaN(c)) c = 0; if (isNaN(s)) s = 0;
+      car += c; solar += s;
+      if (!isNaN(p)) { net += (c - s) * p; }
+    }
+    function setTxt(id, v) { var el = document.getElementById(id); if (el) el.textContent = fmt(v); }
+    setTxt('dayCarKwh', car);
+    setTxt('daySolarKwh', solar);
+    setTxt('dayNet', net);
+  }
+  hourBody.addEventListener('input', updateDayTotals);
+
+  document.addEventListener('focusin', function (e) {
+    var el = e.target;
+    if (el && el.classList && el.classList.contains('num-input') && el.select) el.select();
+  });
+
+  function recomputeNetCostCell(h) {
+    var priceInputs = document.querySelectorAll('.price-input');
+    var carInputs = document.querySelectorAll('.car-kwh-input');
+    var solarInputs = document.querySelectorAll('.solar-kwh-input');
+    var cell = document.querySelector('.net-cost-cell[data-hour="' + h + '"]');
+    var price = parseNum(priceInputs[h].value);
+    var carKwh = parseNum(carInputs[h].value);
+    var solarKwh = parseNum(solarInputs[h].value);
+    if (isNaN(carKwh)) carKwh = 0;
+    if (isNaN(solarKwh)) solarKwh = 0;
+    var net = !isNaN(price) ? (carKwh - solarKwh) * price : 0;
+    if (cell) cell.textContent = fmt(net);
+  }
+
+  function recomputeAllNetCostCells() {
+    for (var h = 0; h < 24; h++) recomputeNetCostCell(h);
+  }
+
+  hourBody.addEventListener('input', function (e) {
+    var h = e.target.getAttribute('data-hour');
+    if (h === null) return;
+    if (e.target.classList.contains('price-input') || e.target.classList.contains('car-kwh-input') || e.target.classList.contains('solar-kwh-input')) {
+      recomputeNetCostCell(parseInt(h, 10));
+    }
+  });
+
+  function loadIntoForm(dateStr) {
+    var days = loadDays();
+    var entry = days[dateStr];
+    var priceInputs = document.querySelectorAll('.price-input');
+    var carInputs = document.querySelectorAll('.car-kwh-input');
+    var solarInputs = document.querySelectorAll('.solar-kwh-input');
+    for (var i = 0; i < 24; i++) {
+      priceInputs[i].value = (entry && entry.hours[i] && entry.hours[i].price != null) ? fmtInput(entry.hours[i].price) : '';
+      carInputs[i].value = (entry && entry.hours[i] && entry.hours[i].carKwh != null) ? fmtInput(entry.hours[i].carKwh) : '';
+      solarInputs[i].value = (entry && entry.hours[i] && entry.hours[i].solarKwh != null) ? fmtInput(entry.hours[i].solarKwh) : '';
+    }
+    recomputeAllNetCostCells();
+    updateDayTotals();
+  }
+
+  dateInput.addEventListener('change', function () {
+    loadIntoForm(dateInput.value);
+  });
+  loadIntoForm(dateInput.value);
+
+  function shiftDate(deltaDays) {
+    var parts = dateInput.value.split('-').map(Number);
+    var d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+    d.setUTCDate(d.getUTCDate() + deltaDays);
+    var y = d.getUTCFullYear();
+    var mo = String(d.getUTCMonth() + 1).padStart(2, '0');
+    var da = String(d.getUTCDate()).padStart(2, '0');
+    dateInput.value = y + '-' + mo + '-' + da;
+    loadIntoForm(dateInput.value);
+  }
+  document.getElementById('prevDayBtn').addEventListener('click', function () { shiftDate(-1); });
+  document.getElementById('nextDayBtn').addEventListener('click', function () { shiftDate(1); });
+
+  function dayFigures(entry) {
+    var carKwh = 0, carCost = 0, solarKwh = 0, netCost = 0;
+    if (entry && entry.hours) {
+      entry.hours.forEach(function (h) {
+        if (h && h.carKwh != null) carKwh += h.carKwh;
+        if (h && h.solarKwh != null) solarKwh += h.solarKwh;
+        if (h && h.price != null) {
+          carCost += (h.carKwh != null ? h.carKwh : 0) * h.price;
+          netCost += ((h.carKwh != null ? h.carKwh : 0) - (h.solarKwh != null ? h.solarKwh : 0)) * h.price;
+        }
+      });
+    }
+    return { carKwh: carKwh, carCost: carCost, solarKwh: solarKwh, netCost: netCost };
+  }
+
+  function renderTotals() {
+    var days = loadDays();
+    var totalCarKwh = 0, totalCarCost = 0, totalNetCost = 0;
+    Object.keys(days).forEach(function (d) {
+      var entry = days[d];
+      var includeInNet = d >= NET_KR_START_DATE;
+      if (entry && entry.hours) {
+        entry.hours.forEach(function (h) {
+          if (h && h.carKwh != null) totalCarKwh += h.carKwh;
+          if (h && h.price != null) {
+            totalCarCost += (h.carKwh != null ? h.carKwh : 0) * h.price;
+            if (includeInNet) {
+              totalNetCost += ((h.carKwh != null ? h.carKwh : 0) - (h.solarKwh != null ? h.solarKwh : 0)) * h.price;
+            }
+          }
+        });
+      }
+    });
+    totalCarKwhEl.textContent = fmt(totalCarKwh);
+    totalCarCostEl.textContent = fmt(totalCarCost) + ' kr';
+    totalNetCostEl.textContent = fmt(totalNetCost) + ' kr';
+  }
+
+  function renderTotalsByMonth() {
+    var tbody = document.getElementById('totalsByMonthBody');
+    if (!tbody) return;
+    var days = loadDays();
+    var months = {};
+    Object.keys(days).forEach(function (d) {
+      var month = d.slice(0, 7);
+      var f = dayFigures(days[d]);
+      if (!months[month]) months[month] = { carKwh: 0, netCost: 0 };
+      months[month].carKwh += f.carKwh;
+      months[month].netCost += f.netCost;
+    });
+    var keys = Object.keys(months).sort().reverse();
+    if (keys.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">No data yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = '';
+    keys.forEach(function (month) {
+      var m = months[month];
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="hr-cell" style="width:auto;">' + month + '</td>' +
+        '<td class="num-cell">' + fmt(m.carKwh) + '</td>' +
+        '<td class="num-cell">' + fmt(m.netCost) + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderDayList() {
+    var days = loadDays();
+    var dates = Object.keys(days).sort().reverse();
+    if (dates.length === 0) {
+      daysBody.innerHTML = '<tr><td colspan="5" class="empty">No days saved yet.</td></tr>';
+      return;
+    }
+    daysBody.innerHTML = '';
+    dates.forEach(function (d) {
+      var f = dayFigures(days[d]);
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="hr-cell" style="width:auto;">' + d + '</td>' +
+        '<td class="num-cell">' + fmt(f.carKwh) + '</td>' +
+        '<td class="num-cell">' + fmt(f.solarKwh) + '</td>' +
+        '<td class="num-cell">' + fmt(f.netCost) + '</td>' +
+        '<td><button class="del-btn" data-date="' + d + '">Delete</button></td>';
+      daysBody.appendChild(tr);
+    });
+
+    daysBody.querySelectorAll('.del-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var days = loadDays();
+        delete days[btn.getAttribute('data-date')];
+        saveDays(days);
+        refreshAll();
+        if (btn.getAttribute('data-date') === dateInput.value) {
+          loadIntoForm(dateInput.value);
+        }
+      });
+    });
+  }
+
+  function renderMonthlyTotals() {
+    var days = loadDays();
+    var manual = loadMonthlyManual();
+    var months = {};
+    Object.keys(days).forEach(function (d) { months[d.slice(0, 7)] = true; });
+    Object.keys(manual).forEach(function (m) { months[m] = true; });
+
+    var keys = Object.keys(months).sort().reverse();
+    if (keys.length === 0) {
+      monthBody.innerHTML = '<tr><td colspan="8" class="empty">No data yet.</td></tr>';
+      return;
+    }
+    monthBody.innerHTML = '';
+    function manualInput(field, month, val) {
+      return '<td><input type="text" inputmode="decimal" autocomplete="off" class="num-input month-manual-input" data-field="' + field + '" data-month="' + month + '" value="' + (val != null ? fmtInput(val) : '') + '"></td>';
+    }
+    var yearTotals = { carKwh: 0, carCost: 0, houseKwh: 0, houseKr: 0, solarKwh: 0, solarKr: 0, onlyHouse: 0 };
+    keys.forEach(function (month) {
+      var carKwh = 0, carCost = 0;
+      Object.keys(days).forEach(function (d) {
+        if (d.slice(0, 7) !== month) return;
+        var f = dayFigures(days[d]);
+        carKwh += f.carKwh;
+        carCost += f.carCost;
+      });
+      var mm = manual[month] || {};
+      var houseKwh = mm.houseKwh != null ? mm.houseKwh : 0;
+      var houseKr = mm.houseKr != null ? mm.houseKr : 0;
+      var solarKwh = mm.solarKwh != null ? mm.solarKwh : 0;
+      var solarKr = mm.solarKr != null ? mm.solarKr : 0;
+      var onlyHouse = houseKr - carCost - solarKr;
+      yearTotals.carKwh += carKwh;
+      yearTotals.carCost += carCost;
+      yearTotals.houseKwh += houseKwh;
+      yearTotals.houseKr += houseKr;
+      yearTotals.solarKwh += solarKwh;
+      yearTotals.solarKr += solarKr;
+      yearTotals.onlyHouse += onlyHouse;
+      var tr = document.createElement('tr');
+      tr.setAttribute('data-month', month);
+      tr.innerHTML =
+        '<td class="hr-cell" style="width:auto;">' + month + '</td>' +
+        '<td class="num-cell">' + fmt(carKwh) + '</td>' +
+        '<td class="num-cell">' + fmt(carCost) + '</td>' +
+        manualInput('houseKwh', month, mm.houseKwh) +
+        manualInput('houseKr', month, mm.houseKr) +
+        manualInput('solarKwh', month, mm.solarKwh) +
+        manualInput('solarKr', month, mm.solarKr) +
+        '<td class="num-cell only-house-cell" data-month="' + month + '">' + fmt(onlyHouse) + '</td>';
+      monthBody.appendChild(tr);
+    });
+
+    var totalRow = document.createElement('tr');
+    totalRow.innerHTML =
+      '<td class="hr-cell" style="width:auto;"><strong>Total year</strong></td>' +
+      '<td class="num-cell"><strong>' + fmt(yearTotals.carKwh) + '</strong></td>' +
+      '<td class="num-cell"><strong>' + fmt(yearTotals.carCost) + '</strong></td>' +
+      '<td class="num-cell"><strong>' + fmt(yearTotals.houseKwh) + '</strong></td>' +
+      '<td class="num-cell"><strong>' + fmt(yearTotals.houseKr) + '</strong></td>' +
+      '<td class="num-cell"><strong>' + fmt(yearTotals.solarKwh) + '</strong></td>' +
+      '<td class="num-cell"><strong>' + fmt(yearTotals.solarKr) + '</strong></td>' +
+      '<td class="num-cell"><strong>' + fmt(yearTotals.onlyHouse) + '</strong></td>';
+    totalRow.style.borderTop = '2px solid var(--accent)';
+    monthBody.appendChild(totalRow);
+
+    monthBody.querySelectorAll('.month-manual-input').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var month = inp.getAttribute('data-month');
+        var field = inp.getAttribute('data-field');
+        var manual2 = loadMonthlyManual();
+        if (!manual2[month]) manual2[month] = {};
+        var n = parseNum(inp.value);
+        manual2[month][field] = isNaN(n) ? null : n;
+        saveMonthlyManual(manual2);
+        renderMonthlyTotals();
+      });
+    });
+  }
+
+  // --- Backup / restore (Updated to include and restore monthlyManual) ---
+  document.getElementById('exportBtn').addEventListener('click', function () {
+    var days = loadDays();
+    var manual = loadMonthlyManual();
+    var payload = {
+      app: 'el-tracker-backup',
+      exportedAt: new Date().toISOString(),
+      days: days,
+      monthlyManual: manual
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var d = new Date();
+    var stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    a.href = url;
+    a.download = 'el-tracker-backup-' + stamp + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    var statusEl = document.getElementById('backupStatus');
+    if (statusEl) statusEl.textContent = 'Exported ' + Object.keys(days).length + ' days and monthly manual inputs.';
+  });
+
+  document.getElementById('importBtn').addEventListener('click', function () {
+    var fileInput = document.getElementById('importFile');
+    var statusEl = document.getElementById('backupStatus');
+    if (!fileInput.files || fileInput.files.length === 0) {
+      if (statusEl) statusEl.textContent = 'Choose a backup .json file first.';
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var parsed;
+      try {
+        parsed = JSON.parse(e.target.result);
+      } catch (err) {
+        if (statusEl) statusEl.textContent = 'That file is not valid JSON.';
+        return;
+      }
+      var incoming = (parsed && parsed.days) ? parsed.days : parsed;
+      if (!incoming || typeof incoming !== 'object') {
+        if (statusEl) statusEl.textContent = 'That file does not look like a tracker backup.';
+        return;
+      }
+      var days = loadDays();
+      var count = 0;
+      Object.keys(incoming).forEach(function (dk) {
+        days[dk] = incoming[dk];
+        count++;
+      });
+      saveDays(days);
+
+      // Restore and merge monthly manual data if present
+      if (parsed.monthlyManual && typeof parsed.monthlyManual === 'object') {
+        var currentManual = loadMonthlyManual();
+        Object.keys(parsed.monthlyManual).forEach(function (m) {
+          if (!currentManual[m]) currentManual[m] = {};
+          var incM = parsed.monthlyManual[m];
+          if (incM && typeof incM === 'object') {
+            Object.keys(incM).forEach(function (f) {
+              currentManual[m][f] = incM[f];
+            });
+          }
+        });
+        saveMonthlyManual(currentManual);
+      }
+
+      refreshAll();
+      loadIntoForm(dateInput.value);
+      if (statusEl) statusEl.textContent = 'Imported ' + count + ' days and monthly manual data.';
+    };
+    reader.readAsText(fileInput.files[0]);
+  });
+
+  function refreshAll() {
+    renderDayList();
+    renderTotals();
+    renderTotalsByMonth();
+    renderMonthlyTotals();
+  }
+
+  var saveConfirmTimer = null;
+  function showSaveConfirmation() {
+    var el = document.getElementById('saveConfirm');
+    if (!el) return;
+    if (saveConfirmTimer) clearTimeout(saveConfirmTimer);
+    el.classList.remove('show');
+    void el.offsetWidth;
+    el.classList.add('show');
+    el.setAttribute('aria-hidden', 'false');
+    saveConfirmTimer = setTimeout(function () {
+      el.classList.remove('show');
+      el.setAttribute('aria-hidden', 'true');
+    }, 1100);
+  }
+
+  document.getElementById('saveDayBtn').addEventListener('click', function () {
+    var days = loadDays();
+    var existingEntry = days[dateInput.value];
+    var priceInputs = document.querySelectorAll('.price-input');
+    var carInputs = document.querySelectorAll('.car-kwh-input');
+    var solarInputs = document.querySelectorAll('.solar-kwh-input');
+    var hours = [];
+    for (var i = 0; i < 24; i++) {
+      var priceVal = priceInputs[i].value;
+      var carVal = carInputs[i].value;
+      var solarVal = solarInputs[i].value;
+      var keptKwh = (existingEntry && existingEntry.hours[i] && existingEntry.hours[i].kwh != null) ? existingEntry.hours[i].kwh : null;
+      hours.push({
+        kwh: keptKwh,
+        price: priceVal === '' ? null : parseNum(priceVal),
+        carKwh: carVal === '' ? null : parseNum(carVal),
+        solarKwh: solarVal === '' ? null : parseNum(solarVal)
+      });
+    }
+    days[dateInput.value] = { hours: hours };
+    saveDays(days);
+    refreshAll();
+    showSaveConfirmation();
+  });
+
+  function round2(n) { return Math.round(n * 100) / 100; }
+
+  function parseAndMergeCsv(text, baseline) {
+    baseline = (typeof baseline === 'number' && !isNaN(baseline) && baseline >= 0) ? baseline : 0;
+    var days = loadDays();
+    var lines = text.split(/\r?\n/);
+    var carMap = {};
+    var sessionCount = 0;
+    var totalKwh = 0;
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line || line.indexOf('Charging Start Time') === 0) continue;
+      var parts = line.split(',');
+      if (parts.length < 3) continue;
+      var startStr = parts[0];
+      var durationMin = parseFloat(parts[1]);
+      var energyKwh = parseFloat(parts[2]);
+      var m = startStr.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/);
+      if (!m || isNaN(durationMin) || isNaN(energyKwh)) continue;
+      sessionCount++;
+      totalKwh += energyKwh;
+      if (energyKwh <= 0 || durationMin <= 0) continue;
+
+      var year = parseInt(m[1], 10), month = parseInt(m[2], 10), day = parseInt(m[3], 10);
+      var minuteInDay = parseInt(m[4], 10) * 60 + parseInt(m[5], 10) + parseInt(m[6], 10) / 60;
+      var avgRate = energyKwh / (durationMin / 60);
+      var remaining = durationMin;
+      var baseDate = new Date(Date.UTC(year, month - 1, day));
+
+      var touches = [];
+      while (remaining > 0.0001) {
+        if (minuteInDay >= 1440) {
+          var daysAhead = Math.floor(minuteInDay / 1440);
+          baseDate.setUTCDate(baseDate.getUTCDate() + daysAhead);
+          minuteInDay -= daysAhead * 1440;
+        }
+        var hourIndex = Math.floor(minuteInDay / 60);
+        var minuteWithinHour = minuteInDay - hourIndex * 60;
+        var minutesLeftInHour = 60 - minuteWithinHour;
+        var minutesToUse = Math.min(minutesLeftInHour, remaining);
+        var dk = baseDate.getUTCFullYear() + '-' +
+          String(baseDate.getUTCMonth() + 1).padStart(2, '0') + '-' +
+          String(baseDate.getUTCDate()).padStart(2, '0');
+        touches.push({ dk: dk, hour: hourIndex, minutes: minutesToUse });
+        minuteInDay += minutesToUse;
+        remaining -= minutesToUse;
+      }
+
+      var weights = touches.map(function (t) {
+        var dayData = days[t.dk];
+        var measured = (dayData && dayData.hours[t.hour] && dayData.hours[t.hour].kwh != null) ? dayData.hours[t.hour].kwh : null;
+        if (measured != null) {
+          return Math.max(0.001, measured - baseline);
+        }
+        return avgRate * (t.minutes / 60);
+      });
+      var weightSum = weights.reduce(function (a, b) { return a + b; }, 0);
+      if (weightSum <= 0) weightSum = touches.length;
+
+      touches.forEach(function (t, idx) {
+        var contribution = (weights[idx] / weightSum) * energyKwh;
+        if (!carMap[t.dk]) carMap[t.dk] = new Array(24).fill(0);
+        carMap[t.dk][t.hour] += contribution;
+      });
+    }
+
+    var updatedDates = Object.keys(carMap);
+    updatedDates.forEach(function (dk) {
+      if (!days[dk]) {
+        var hours = [];
+        for (var h = 0; h < 24; h++) hours.push({ kwh: null, price: null, carKwh: null });
+        days[dk] = { hours: hours };
+      }
+      for (var h2 = 0; h2 < 24; h2++) {
+        var v = carMap[dk][h2];
+        days[dk].hours[h2].carKwh = v > 0.0001 ? round2(v) : null;
+      }
+    });
+    saveDays(days);
+    return { updatedDates: updatedDates, totalKwh: round2(totalKwh), sessionCount: sessionCount };
+  }
+
+  function runCsvImport(text) {
+    var baselineEl = document.getElementById('baselineLoad');
+    var baseline = baselineEl ? parseNum(baselineEl.value) : 0.55;
+    var result = parseAndMergeCsv(text, baseline);
+    refreshAll();
+    loadIntoForm(dateInput.value);
+    var statusEl = document.getElementById('importStatus');
+    if (statusEl) {
+      statusEl.textContent = result.sessionCount + ' charging sessions found · ' +
+        result.updatedDates.length + ' days updated · ' +
+        fmt(result.totalKwh) + ' kWh total.';
+    }
+    return result;
+  }
+
+  document.getElementById('importCsvBtn').addEventListener('click', function () {
+    var fileInput = document.getElementById('csvFile');
+    if (fileInput.files && fileInput.files.length > 0) {
+      var reader = new FileReader();
+      reader.onload = function (e) { runCsvImport(e.target.result); };
+      reader.readAsText(fileInput.files[0]);
+    } else {
+      var text = document.getElementById('csvInput').value;
+      if (text.trim()) runCsvImport(text);
+    }
+  });
+
+  function parseQuotedCsvLine(line) {
+    var result = [];
+    var i = 0;
+    while (i < line.length) {
+      if (line[i] === '"') {
+        var end = line.indexOf('"', i + 1);
+        if (end === -1) end = line.length;
+        result.push(line.substring(i + 1, end));
+        i = end + 2;
+      } else {
+        var comma = line.indexOf(',', i);
+        if (comma === -1) comma = line.length;
+        result.push(line.substring(i, comma));
+        i = comma + 1;
+      }
+    }
+    return result;
+  }
+
+  function parseAndMergeHouseCsv(text) {
+    var days = loadDays();
+    var lines = text.split(/\r?\n/);
+    var updatedDates = {};
+    var rowCount = 0;
+    var totalKwh = 0;
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line || line.indexOf('Date,') === 0) continue;
+      var parts = parseQuotedCsvLine(line);
+      if (parts.length < 3) continue;
+      var m = parts[0].match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):\d{2}/);
+      if (!m) continue;
+      var dk = m[1] + '-' + m[2] + '-' + m[3];
+      var hour = parseInt(m[4], 10);
+      var kwh = parseFloat(String(parts[1]).replace(',', '.'));
+      var price = parseFloat(String(parts[2]).replace(',', '.'));
+      if (isNaN(kwh) || isNaN(price)) continue;
+
+      if (!days[dk]) {
+        var hours = [];
+        for (var h = 0; h < 24; h++) hours.push({ kwh: null, price: null, carKwh: null, solarKwh: null });
+        days[dk] = { hours: hours };
+      }
+      days[dk].hours[hour].kwh = round2(kwh);
+      days[dk].hours[hour].price = round2(price);
+      updatedDates[dk] = true;
+      rowCount++;
+      totalKwh += kwh;
+    }
+
+    saveDays(days);
+    return { updatedDates: Object.keys(updatedDates), rowCount: rowCount, totalKwh: round2(totalKwh) };
+  }
+
+  function runHouseCsvImport(text) {
+    var result = parseAndMergeHouseCsv(text);
+    refreshAll();
+    loadIntoForm(dateInput.value);
+    var statusEl = document.getElementById('importHouseStatus');
+    if (statusEl) {
+      statusEl.textContent = result.rowCount + ' hours found · ' +
+        result.updatedDates.length + ' days updated · ' +
+        fmt(result.totalKwh) + ' kWh total.';
+    }
+    return result;
+  }
+
+  document.getElementById('importHouseCsvBtn').addEventListener('click', function () {
+    var fileInput = document.getElementById('houseCsvFile');
+    if (fileInput.files && fileInput.files.length > 0) {
+      var reader = new FileReader();
+      reader.onload = function (e) { runHouseCsvImport(e.target.result); };
+      reader.readAsText(fileInput.files[0]);
+    } else {
+      var text = document.getElementById('houseCsvInput').value;
+      if (text.trim()) runHouseCsvImport(text);
+    }
+  });
+
+  function parseAndMergeSolarCsv(text) {
+    var days = loadDays();
+    var lines = text.split(/\r?\n/);
+    var updatedDates = {};
+    var rowCount = 0;
+    var totalKwh = 0;
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line || line.indexOf('Date,') === 0) continue;
+      var parts = parseQuotedCsvLine(line);
+      if (parts.length < 2) continue;
+      var m = parts[0].match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):\d{2}/);
+      if (!m) continue;
+      var dk = m[1] + '-' + m[2] + '-' + m[3];
+      var hour = parseInt(m[4], 10);
+      var solarKwh = parseFloat(String(parts[1]).replace(',', '.'));
+      if (isNaN(solarKwh)) continue;
+
+      if (!days[dk]) {
+        var hours = [];
+        for (var h = 0; h < 24; h++) hours.push({ kwh: null, price: null, carKwh: null, solarKwh: null });
+        days[dk] = { hours: hours };
+      }
+      days[dk].hours[hour].solarKwh = round2(solarKwh);
+      updatedDates[dk] = true;
+      rowCount++;
+      totalKwh += solarKwh;
+    }
+
+    saveDays(days);
+    return { updatedDates: Object.keys(updatedDates), rowCount: rowCount, totalKwh: round2(totalKwh) };
+  }
+
+  function runSolarCsvImport(text) {
+    var result = parseAndMergeSolarCsv(text);
+    refreshAll();
+    loadIntoForm(dateInput.value);
+    var statusEl = document.getElementById('importSolarStatus');
+    if (statusEl) {
+      statusEl.textContent = result.rowCount + ' hours found · ' +
+        result.updatedDates.length + ' days updated · ' +
+        fmt(result.totalKwh) + ' kWh exported.';
+    }
+    return result;
+  }
+
+  document.getElementById('importSolarCsvBtn').addEventListener('click', function () {
+    var fileInput = document.getElementById('solarCsvFile');
+    if (fileInput.files && fileInput.files.length > 0) {
+      var reader = new FileReader();
+      reader.onload = function (e) { runSolarCsvImport(e.target.result); };
+      reader.readAsText(fileInput.files[0]);
+    } else {
+      var text = document.getElementById('solarCsvInput').value;
+      if (text.trim()) runSolarCsvImport(text);
+    }
+  });
+
+  document.getElementById('distributeBtn').addEventListener('click', function () {
+    var startMin = parseTime(chargeStartHour.value);
+    if (startMin == null) startMin = 0;
+    var total = parseNum(chargeKwh.value);
+    var rate = parseNum(chargeRate.value);
+    var statusEl = document.getElementById('chargeStatus');
+    if (isNaN(total) || total <= 0 || isNaN(rate) || rate <= 0) {
+      if (statusEl) statusEl.textContent = 'Enter kWh charged and charger kW first.';
+      return;
+    }
+
+    var perMin = rate / 60;
+    var vals = new Array(24).fill(0);
+    var remaining = total;
+    var t = startMin;
+    while (remaining > 0.0001 && t < 1440) {
+      var hour = Math.floor(t / 60);
+      var minsLeft = (hour + 1) * 60 - t;
+      var canDo = perMin * minsLeft;
+      var chunk = Math.min(canDo, remaining);
+      vals[hour] += chunk;
+      remaining -= chunk;
+      t = (chunk >= canDo - 1e-9) ? (hour + 1) * 60 : t + chunk / perMin;
+    }
+
+    var carInputs = document.querySelectorAll('.car-kwh-input');
+    for (var c = 0; c < 24; c++) carInputs[c].value = vals[c] > 0.0001 ? fmtInput(vals[c]) : '';
+    recomputeAllNetCostCells();
+    updateDayTotals();
+
+    if (statusEl) {
+      var msg = 'Charging ' + fmtClock(startMin) + ' \u2192 ' + (remaining > 0.0001 ? '24:00' : fmtClock(t)) + ' at ' + fmtInput(rate) + ' kW.';
+      if (remaining > 0.0001) msg += ' ' + fmtInput(remaining) + ' kWh would run past midnight and was not added.';
+      statusEl.textContent = msg;
+    }
+  });
+
+  refreshAll();
+})();
+</script>
+</body>
+</html>
